@@ -18,6 +18,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.for_EventStore.given
         protected static Mock<IExecutionContextManager> execution_context_manager;
         protected static IEventCommitter event_committer;
         protected static IAggregateRoots aggregate_roots;
+        protected static Mock<IMetrics> metrics;
 
         Establish context = () =>
         {
@@ -26,6 +27,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.for_EventStore.given
             execution_context_manager.SetupGet(_ => _.Current).Returns(execution_contexts.create());
             event_committer = new EventCommitter(an_event_store_connection);
             aggregate_roots = new AggregateRoots(an_event_store_connection);
+            metrics = new Mock<IMetrics>();
         };
 
         Cleanup cleanup = () => an_event_store_connection.Dispose();

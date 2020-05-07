@@ -24,6 +24,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
         readonly EventStoreConnection _connection;
         readonly IEventCommitter _eventCommitter;
         readonly IAggregateRoots _aggregateRoots;
+        readonly IMetrics _metrics;
         readonly ILogger _logger;
 
         /// <summary>
@@ -33,18 +34,21 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
         /// <param name="connection">An <see cref="EventStoreConnection"/> to a MongoDB EventStore.</param>
         /// <param name="eventCommitter">The <see cref="IEventCommitter" />.</param>
         /// <param name="aggregateRoots">The <see cref="IAggregateRoots" />.</param>
+        /// <param name="metrics"><see cref="IMetrics"/> for event store.</param>
         /// <param name="logger">An <see cref="ILogger"/>.</param>
         public EventStore(
             IExecutionContextManager executionContextManager,
             EventStoreConnection connection,
             IEventCommitter eventCommitter,
             IAggregateRoots aggregateRoots,
+            IMetrics metrics,
             ILogger logger)
         {
             _executionContextManager = executionContextManager;
             _connection = connection;
             _eventCommitter = eventCommitter;
             _aggregateRoots = aggregateRoots;
+            _metrics = metrics;
             _logger = logger;
         }
 
@@ -65,6 +69,8 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
                         var committedEvents = new List<CommittedEvent>();
                         foreach (var @event in events)
                         {
+                            _metrics.IncrementUncommittedEvents(@event);
+
                             var committedEvent = await _eventCommitter.CommitEvent(
                                 transaction,
                                 eventLogSequenceNumber,
@@ -74,6 +80,8 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
                                 cancel).ConfigureAwait(false);
                             committedEvents.Add(committedEvent);
                             eventLogSequenceNumber++;
+
+                            _metrics.IncrementCommittedEvents(committedEvent);
                         }
 
                         return new CommittedEvents(committedEvents);
@@ -82,6 +90,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
             }
             catch (MongoWaitQueueFullException ex)
             {
+                _metrics.IncrementFailedUncommittedEvents(events);
                 throw new EventStoreUnavailable("Mongo wait queue is full", ex);
             }
         }
@@ -104,6 +113,8 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
 
                         var committedEvents = new List<CommittedAggregateEvent>();
 
+                        _metrics.IncrementUncommittedAggregateEvents(events);
+
                         foreach (var @event in events)
                         {
                             var committedEvent = await _eventCommitter.CommitAggregateEvent(
@@ -119,6 +130,8 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
                             committedEvents.Add(committedEvent);
                             eventLogSequenceNumber++;
                             aggregateRootVersion++;
+
+                            _metrics.IncrementCommittedAggregateEvents(committedEvent);
                         }
 
                         await _aggregateRoots.IncrementVersionFor(
@@ -135,6 +148,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
             }
             catch (MongoWaitQueueFullException ex)
             {
+                _metrics.IncrementFailedUncommittedAggregateEvents(events);
                 throw new EventStoreUnavailable("Mongo wait queue is full", ex);
             }
         }

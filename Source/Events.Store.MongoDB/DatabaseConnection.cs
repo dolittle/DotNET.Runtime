@@ -22,7 +22,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB
             var config = configuration.Instance;
             var settings = new MongoClientSettings
             {
-                Servers = config.Servers.Select(_ => new MongoServerAddress(_)),
+                Servers = config.Servers.Select(MongoServerAddress.Parse),
                 GuidRepresentation = GuidRepresentation.Standard
             };
 

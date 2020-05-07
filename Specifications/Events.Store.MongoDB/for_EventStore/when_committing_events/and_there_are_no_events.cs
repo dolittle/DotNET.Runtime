@@ -22,6 +22,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.for_EventStore.when_committing_e
                 an_event_store_connection,
                 event_committer,
                 aggregate_roots,
+                metrics.Object,
                 Moq.Mock.Of<ILogger>());
         };
 
