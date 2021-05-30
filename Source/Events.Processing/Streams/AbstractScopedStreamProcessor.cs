@@ -214,6 +214,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                         tryGetEvent = await FetchNextEventToProcess(_currentState, cancellationToken).ConfigureAwait(false);
                         if (!tryGetEvent.Success)
                         {
+                            Logger.LogTrace("No event to process at {position}", _currentState.Position);
                             await _eventWaiter.WaitForEvent(
                                 Identifier.ScopeId,
                                 _sourceStreamDefinition.StreamId,
@@ -224,6 +225,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                     }
 
                     if (cancellationToken.IsCancellationRequested) break;
+                    Logger.LogTrace("Processing event at {position}", _currentState.Position);
                     _currentState = await ProcessEvent(tryGetEvent, _currentState, cancellationToken).ConfigureAwait(false);
                 }
                 while (!cancellationToken.IsCancellationRequested);
