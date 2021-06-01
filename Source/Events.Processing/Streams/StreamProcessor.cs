@@ -91,6 +91,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                         _externalCancellationToken).ConfigureAwait(false);
                     _streamProcessors.Add(tenant, scopedStreamProcessor);
                 }).ConfigureAwait(false);
+            _logger.LogTrace("Initialized stream processor {streamProcessor} on stream {streamDefinition}", _identifier, _streamDefinition);
             _initialized = true;
         }
 
@@ -110,13 +111,16 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                 using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_internalCancellationTokenSource.Token, _externalCancellationToken);
                 var tasks = StartScopedStreamProcessors(linkedTokenSource.Token);
                 await Task.WhenAny(tasks).ConfigureAwait(false);
+                _logger.LogTrace("One or more of the scoped stream processors with id {streamProcessorId} on stream {streamDefinition} stopped", _identifier, _streamDefinition);
                 if (TryGetException(tasks, out var ex))
                 {
                     _logger.ScopedStreamProcessorFailed(ex, _identifier);
                 }
 
                 _internalCancellationTokenSource.Cancel();
+                _logger.LogTrace("Waiting for all the scoped stream processors with id {streamProcessorId} on stream {streamDefinition} to stop", _identifier, _streamDefinition);
                 await Task.WhenAll(tasks).ConfigureAwait(false);
+                _logger.LogTrace("Stopped all the scoped stream processors with id {streamProcessorId} on stream {streamDefinition}", _identifier, _streamDefinition);
             }
             finally
             {
@@ -154,7 +158,9 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                 {
                     (var tenant, var streamProcessor) = _;
                     _executionContextManager.CurrentFor(tenant);
+                    _logger.LogTrace("StartScopedStreamProcessors scoped stream processor {streamProcessorId} on stream {streamDefinition} for tenant {tenant}", _identifier, _streamDefinition, tenant);
                     await streamProcessor.Start(cancellationToken).ConfigureAwait(false);
+                    _logger.LogTrace("End of StartScopedStreamProcessors for scoped stream processor {streamProcessorId} on stream {streamDefinition} for tenant {tenant}", _identifier, _streamDefinition, tenant);
                 })).ToList();
 
         static bool TryGetException(IEnumerable<Task> tasks, out Exception exception)

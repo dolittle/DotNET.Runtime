@@ -66,6 +66,7 @@ namespace Dolittle.Runtime.Events.Processing.Filters
         public async Task<FilterValidationResult> Validate<TDefinition>(IFilterProcessor<TDefinition> filter, CancellationToken cancellationToken)
             where TDefinition : IFilterDefinition
         {
+            _logger.LogTrace("Starting Validate for source {Source}, target {Target}, isPartitioned: {Partitioned}, isPublic: {Public}", filter.Definition.SourceStream, filter.Definition.TargetStream, filter.Definition.Partitioned, filter.Definition.Public);
             var tryGetProcessorState = await _getStreamProcessorStates()
                 .TryGetFor(new StreamProcessorId(filter.Scope, filter.Definition.TargetStream.Value, filter.Definition.SourceStream), cancellationToken)
                 .ConfigureAwait(false);

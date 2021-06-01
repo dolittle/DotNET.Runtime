@@ -41,6 +41,7 @@ namespace Dolittle.Runtime.Events.Processing.Filters
         public async Task<IDictionary<TenantId, FilterValidationResult>> Validate<TDefinition>(Func<IFilterProcessor<TDefinition>> getFilterProcessor, CancellationToken cancellationToken)
             where TDefinition : IFilterDefinition
         {
+            _logger.LogTrace("Starting Validate for all tenants");
             var result = new Dictionary<TenantId, FilterValidationResult>();
             await _onAllTenants.PerformAsync(async tenantId =>
                 {

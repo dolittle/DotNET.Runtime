@@ -55,6 +55,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
         protected override async Task<IStreamProcessorState> Catchup(IStreamProcessorState currentState, CancellationToken cancellationToken)
         {
             var streamProcessorState = currentState as StreamProcessorState;
+            Logger.LogTrace("Catchup for stream processor {streamProcessor} with state {state}", Identifier, streamProcessorState);
             while (streamProcessorState.IsFailing && !cancellationToken.IsCancellationRequested)
             {
                 if (!CanRetryProcessing(streamProcessorState.RetryTime))
@@ -70,6 +71,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                 }
             }
 
+            Logger.LogTrace("Catchup done for stream processor {streamProcessor} returning state {state}", Identifier, streamProcessorState);
             return streamProcessorState;
         }
 

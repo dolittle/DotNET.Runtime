@@ -129,18 +129,30 @@ namespace Dolittle.Runtime.Services
         /// <inheritdoc/>
         public async Task Accept(TConnectResponse response, CancellationToken cancellationToken)
         {
-            ThrowIfResponded();
-            lock (_respondLock)
+            try
             {
                 ThrowIfResponded();
-                _accepted = true;
+                lock (_respondLock)
+                {
+                    ThrowIfResponded();
+                    _accepted = true;
+                }
+
+                var message = new TServerMessage();
+                _messageConverter.SetConnectResponse(response, message);
+                await _serverStream.WriteAsync(message).ConfigureAwait(false);
+                _ = Task.Run(() => StartPinging(cancellationToken));
+                await HandleClientMessages(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Dispatcher failed. Cancelation was {isCancellationRequested}requested", cancellationToken.IsCancellationRequested ? "" : "not ");
+            }
+            finally
+            {
+                _logger.LogTrace("Dispatcher finished. Cancelation was {isCancellationRequested}requested", cancellationToken.IsCancellationRequested ? "" : "not ");
             }
 
-            var message = new TServerMessage();
-            _messageConverter.SetConnectResponse(response, message);
-            await _serverStream.WriteAsync(message).ConfigureAwait(false);
-            _ = Task.Run(() => StartPinging(cancellationToken));
-            await HandleClientMessages(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

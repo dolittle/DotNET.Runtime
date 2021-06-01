@@ -101,6 +101,8 @@ namespace Dolittle.Runtime.Events.Processing.EventHandlers
             _logger.ReceivedEventHandler(StreamId.EventLog, arguments.EventHandler, arguments.Scope, arguments.EventTypes, arguments.Partitioned);
             if (await RejectIfNonWriteableStream(dispatcher, arguments.EventHandler, cts.Token).ConfigureAwait(false)) return;
 
+            using var _ = context.CancellationToken.Register(() => _logger.LogTrace("Event Handler '{EventHandlerId}' was cancelled by the client", arguments.EventHandler.Value));
+
             _logger.LogDebug("Connecting Event Handler '{EventHandlerId}'", arguments.EventHandler.Value);
             var filterDefinition = new TypeFilterWithEventSourcePartitionDefinition(StreamId.EventLog, targetStream, arguments.EventTypes, arguments.Partitioned);
 

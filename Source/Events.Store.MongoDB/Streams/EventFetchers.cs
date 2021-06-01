@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dolittle.Runtime.Events.Store.MongoDB.Events;
 using Dolittle.Runtime.Events.Store.Streams;
+using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 
 namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
@@ -16,16 +17,18 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
     {
         readonly IStreams _streams;
         readonly IEventConverter _eventConverter;
+        readonly ILoggerFactory _loggerFactory;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EventFetchers"/> class.
         /// </summary>
         /// <param name="streams">The <see cref="IStreams" />.</param>
         /// <param name="eventConverter">The <see cref="IEventConverter" />.</param>
-        public EventFetchers(IStreams streams, IEventConverter eventConverter)
+        public EventFetchers(IStreams streams, IEventConverter eventConverter, ILoggerFactory loggerFactory)
         {
             _streams = streams;
             _eventConverter = eventConverter;
+            _loggerFactory = loggerFactory;
         }
 
         /// <inheritdoc/>
@@ -94,16 +97,18 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
                 _ => _.EventLogSequenceNumber,
                 _ => _eventConverter.ToRuntimeStreamEvent(_),
                 _ => _.Metadata.TypeId,
-                _ => _.Metadata.TypeGeneration);
+                _ => _.Metadata.TypeGeneration,
+                _loggerFactory.CreateLogger<StreamFetcher<MongoDB.Events.Event>>());
 
         StreamFetcher<MongoDB.Events.StreamEvent> CreateStreamFetcherForStreamEventCollection(IMongoCollection<Events.StreamEvent> collection, StreamId streamId, bool partitioned) =>
-            new (
+            new(
                 collection,
                 Builders<Events.StreamEvent>.Filter,
                 _ => _.StreamPosition,
                 _ => _eventConverter.ToRuntimeStreamEvent(_, streamId, partitioned),
                 _ => _.Metadata.TypeId,
                 _ => _.Metadata.TypeGeneration,
-                _ => _.Partition);
+                _ => _.Partition,
+                _loggerFactory.CreateLogger<StreamFetcher<MongoDB.Events.StreamEvent>>());
     }
 }

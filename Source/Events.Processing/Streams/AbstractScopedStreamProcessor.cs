@@ -136,7 +136,9 @@ namespace Dolittle.Runtime.Events.Processing.Streams
         /// <returns>A <see cref="Task"/> that, when returned, returns the new <see cref="IStreamProcessorState" />.</returns>
         protected virtual async Task<IStreamProcessorState> ProcessEvent(StreamEvent @event, IStreamProcessorState currentState, CancellationToken cancellationToken)
         {
+            Logger.LogTrace("{StreamProcessorId} for {sourceStream} for tenant {TenantId} ProcessEvent() at {position}", Identifier, _sourceStreamDefinition, _tenantId, currentState.Position);
             var processingResult = await _processor.Process(@event.Event, @event.Partition, cancellationToken).ConfigureAwait(false);
+            Logger.LogTrace("{StreamProcessorId} for {sourceStream} for tenant {TenantId} ProcessEvent() at {position} resulted in {processingResult}", Identifier, _sourceStreamDefinition, _tenantId, currentState.Position, processingResult);
             return await HandleProcessingResult(processingResult, @event, currentState).ConfigureAwait(false);
         }
 
@@ -189,6 +191,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
         /// <returns>A <see cref="Task" /> that, when resolved, returns the new <see cref="IStreamProcessorState" />.</returns>
         protected Task<IStreamProcessorState> HandleProcessingResult(IProcessingResult processingResult, StreamEvent processedEvent, IStreamProcessorState currentState)
         {
+            Logger.LogTrace("Starting HandleProcessingResult() for event in stream {Stream}, position {Position} and partition {Partition}", processedEvent.Stream, processedEvent.Position, processedEvent.Partition);
             if (processingResult.Retry)
             {
                 return OnRetryProcessingResult(processingResult as FailedProcessing, processedEvent, currentState);
@@ -203,6 +206,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
 
         async Task BeginProcessing(CancellationToken cancellationToken)
         {
+            Logger.LogTrace("BeginProcessing() stream processor {StreamProcessorId} for {SourceStream} for tenant {TenantId} with current state {CurrentState}", Identifier, _sourceStreamDefinition, _tenantId, _currentState);
             try
             {
                 do
@@ -210,11 +214,17 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                     Try<StreamEvent> tryGetEvent = false;
                     while (!tryGetEvent.Success && !cancellationToken.IsCancellationRequested)
                     {
+                        Logger.LogTrace("{StreamProcessorId} for {SourceStream} for tenant {TenantId} is catching up from {Position}", Identifier, _sourceStreamDefinition, _tenantId, _currentState.Position);
                         _currentState = await Catchup(_currentState, cancellationToken).ConfigureAwait(false);
+                        Logger.LogTrace("{StreamProcessorId} for {SourceStream} for tenant {TenantId} is fetching next event to process {Position}", Identifier, _sourceStreamDefinition, _tenantId, _currentState.Position);
                         tryGetEvent = await FetchNextEventToProcess(_currentState, cancellationToken).ConfigureAwait(false);
                         if (!tryGetEvent.Success)
                         {
-                            Logger.LogTrace("No event to process at {position}", _currentState.Position);
+                            if (tryGetEvent.HasException)
+                            {
+                                Logger.LogWarning(tryGetEvent.Exception, "{StreamProcessorId} for {SourceStream} for tenant {TenantId} failed fetching event at {Position}", Identifier, _sourceStreamDefinition, _tenantId, _currentState.Position);
+                            }
+                            Logger.LogTrace("{StreamProcessorId} for {SourceStream} for tenant {TenantId} has no event to process at {Position}", Identifier, _sourceStreamDefinition, _tenantId, _currentState.Position);
                             await _eventWaiter.WaitForEvent(
                                 Identifier.ScopeId,
                                 _sourceStreamDefinition.StreamId,
@@ -225,7 +235,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                     }
 
                     if (cancellationToken.IsCancellationRequested) break;
-                    Logger.LogTrace("Processing event at {position}", _currentState.Position);
+                    Logger.LogTrace("{StreamProcessorId} for {SourceStream} for tenant {TenantId} is processing event at {Position}", Identifier, _sourceStreamDefinition, _tenantId, _currentState.Position);
                     _currentState = await ProcessEvent(tryGetEvent, _currentState, cancellationToken).ConfigureAwait(false);
                 }
                 while (!cancellationToken.IsCancellationRequested);
@@ -236,6 +246,11 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                 {
                     Logger.LogWarning(ex, "{StreamProcessorId} for tenant {TenantId} failed", Identifier, _tenantId);
                 }
+                Logger.LogTrace(ex, "{StreamProcessorId} for {SourceStream} for tenant {TenantId} stopped with exception", Identifier, _sourceStreamDefinition, _tenantId);
+            }
+            finally
+            {
+                Logger.LogTrace("End of BeginProcessing() stream processor {StreamProcessorId} for {SourceStream} for tenant {TenantId} with current state {CurrentState}. Cancelation was {isCancellationRequested}request", Identifier, _sourceStreamDefinition, _tenantId, _currentState, cancellationToken.IsCancellationRequested ? "" : "not ");
             }
         }
     }

@@ -57,6 +57,8 @@ namespace Dolittle.Runtime.Events.Processing.Streams
             CancellationToken cancellationToken,
             out StreamProcessor streamProcessor)
         {
+            _logger.LogTrace("Starting StreamProcessors.TryRegister for EventProcessorId {EventProcessorId} in scope {ScopeId}", eventProcessorId, scopeId);
+
             streamProcessor = default;
             var streamProcessorId = new StreamProcessorId(scopeId, eventProcessorId, sourceStreamDefinition.StreamId);
             if (_streamProcessors.ContainsKey(streamProcessorId))

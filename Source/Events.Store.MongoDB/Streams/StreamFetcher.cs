@@ -11,6 +11,7 @@ using Dolittle.Runtime.Rudimentary;
 using Dolittle.Runtime.Events.Store.Streams;
 using MongoDB.Driver;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
 {
@@ -28,6 +29,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
         readonly Expression<Func<TEvent, Guid>> _eventToArtifactId;
         readonly Expression<Func<TEvent, uint>> _eventToArtifactGeneration;
         readonly Expression<Func<TEvent, Guid>> _partitionIdExpression = default;
+        readonly ILogger _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StreamFetcher{T}"/> class.
@@ -44,7 +46,8 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
             Expression<Func<TEvent, ulong>> sequenceNumberExpression,
             Expression<Func<TEvent, StreamEvent>> eventToStreamEvent,
             Expression<Func<TEvent, Guid>> eventToArtifactId,
-            Expression<Func<TEvent, uint>> eventToArtifactGeneration)
+            Expression<Func<TEvent, uint>> eventToArtifactGeneration,
+            ILogger logger)
         {
             _stream = stream;
             _filter = filter;
@@ -52,6 +55,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
             _eventToStreamEvent = eventToStreamEvent;
             _eventToArtifactId = eventToArtifactId;
             _eventToArtifactGeneration = eventToArtifactGeneration;
+            _logger = logger;
         }
 
         /// <summary>
@@ -70,8 +74,9 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
             Expression<Func<TEvent, StreamEvent>> eventToStreamEvent,
             Expression<Func<TEvent, Guid>> eventToArtifactId,
             Expression<Func<TEvent, uint>> eventToArtifactGeneration,
-            Expression<Func<TEvent, Guid>> partitionIdExpression)
-            :this(stream, filter, sequenceNumberExpression, eventToStreamEvent, eventToArtifactId, eventToArtifactGeneration)
+            Expression<Func<TEvent, Guid>> partitionIdExpression,
+            ILogger logger)
+            : this(stream, filter, sequenceNumberExpression, eventToStreamEvent, eventToArtifactId, eventToArtifactGeneration, logger)
         {
             _partitionIdExpression = partitionIdExpression;
         }
@@ -83,15 +88,22 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
         {
             try
             {
+                _logger.LogTrace("Fetch() trying to fetch position {Position} in collection {Collection}", streamPosition, _stream.CollectionNamespace);
                 var @event = await _stream.Find(
                     _filter.Eq(_sequenceNumberExpression, streamPosition.Value))
                     .Project(_eventToStreamEvent)
                     .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+                _logger.LogTrace("Fetch() result for position {Position} in collection {Collection} is event {Event} was found {IsDefault}", streamPosition, _stream.CollectionNamespace, @event, @event != default);
                 return (@event != default, @event);
             }
             catch (MongoWaitQueueFullException ex)
             {
                 throw new EventStoreUnavailable("Mongo wait queue is full", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Fetch() failed while trying to fetch position {Position} in collection {Collection} failed with exception", streamPosition, _stream.CollectionNamespace);
+                throw;
             }
         }
 
@@ -196,7 +208,7 @@ namespace Dolittle.Runtime.Events.Store.MongoDB.Streams
 
             public Guid Id { get; set; }
 
-            public IEnumerable<uint> Generations { get; set; }
+            public IEnumerable<uint> Generations { get; set; }
         }
 
         void ThrowIfNotConstructedWithPartitionIdExpression()
