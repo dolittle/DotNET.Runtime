@@ -85,15 +85,17 @@ namespace Dolittle.Runtime.Events.Processing.EventHandlers
                     _eventHandlersProtocol,
                     cts.Token).ConfigureAwait(false);
                 if (!connectResult.Success) return;
-                _logger.SettingExecutionContext(connectResult.Result.arguments.ExecutionContext);
-                _executionContextManager.CurrentFor(connectResult.Result.arguments.ExecutionContext);
+
+                var (dispatcher, arguments) = connectResult.Result;
+                _logger.SettingExecutionContext(arguments.ExecutionContext);
+                _executionContextManager.CurrentFor(arguments.ExecutionContext);
 
                 using var eventHandler = new EventHandler(
                     _streamProcessors,
                     _filterValidator,
                     _streamDefinitions,
-                    connectResult.Result.dispatcher,
-                    connectResult.Result.arguments,
+                    dispatcher,
+                    arguments,
                     _getEventsToStreamsWriter,
                     _loggerFactory,
                     cts.Token
