@@ -28,8 +28,8 @@ namespace Dolittle.Runtime.Heads
             {
                 switch (e.Action)
                 {
-                    case NotifyCollectionChangedAction.Add: for (var i = 0; i < e.NewItems?.Count; i++) _headConnects.Inc(); break;
-                    case NotifyCollectionChangedAction.Remove: for (var i = 0; i < e.OldItems?.Count; i++) _headConnects.Inc(); break;
+                    case NotifyCollectionChangedAction.Add: _headConnects.Inc(e.NewItems.Count); break;
+                    case NotifyCollectionChangedAction.Remove: _headDisconnects.Inc(e.OldItems.Count); break;
                 }
 
                 _connectedHeads.Set(connectedHeads.All.Count);

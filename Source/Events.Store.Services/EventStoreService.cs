@@ -22,6 +22,7 @@ namespace Dolittle.Runtime.Events.Store.Services
     {
         readonly FactoryFor<IEventStore> _eventStoreFactory;
         readonly IExecutionContextManager _executionContextManager;
+        readonly IMetricsCollector _metrics;
         readonly ILogger _logger;
 
         /// <summary>
@@ -29,14 +30,17 @@ namespace Dolittle.Runtime.Events.Store.Services
         /// </summary>
         /// <param name="eventStoreFactory"><see cref="IEventStore"/>.</param>
         /// <param name="executionContextManager"><see cref="IExecutionContextManager" />.</param>
+        /// <param name="metrics"><see cref="IMetricsCollector" />.</param>
         /// <param name="logger"><see cref="ILogger"/> for logging.</param>
         public EventStoreService(
             FactoryFor<IEventStore> eventStoreFactory,
             IExecutionContextManager executionContextManager,
+            IMetricsCollector metrics,
             ILogger logger)
         {
             _eventStoreFactory = eventStoreFactory;
             _executionContextManager = executionContextManager;
+            _metrics = metrics;
             _logger = logger;
         }
 
@@ -49,10 +53,12 @@ namespace Dolittle.Runtime.Events.Store.Services
                 _logger.EventsReceivedForCommitting(false, events.Count);
                 var committedEvents = await _eventStoreFactory().CommitEvents(events, token).ConfigureAwait(false);
                 _logger.LogDebug("Events were successfully committed");
+                _metrics.IncrementCommittedEvents(committedEvents);
                 return committedEvents;
             }
             catch (Exception ex)
             {
+                _metrics.IncrementFailedEvents(events);
                 _logger.LogWarning(ex, "Error committing events");
                 return ex;
             }
@@ -67,10 +73,12 @@ namespace Dolittle.Runtime.Events.Store.Services
                 _logger.EventsReceivedForCommitting(true, events.Count);
                 var committedEvents = await _eventStoreFactory().CommitAggregateEvents(events, token).ConfigureAwait(false);
                 _logger.LogDebug("Aggregate events were successfully committed");
+                _metrics.IncrementCommittedAggregateEvents(committedEvents);
                 return committedEvents;
             }
             catch (Exception ex)
             {
+                _metrics.IncrementFailedAggregateEvents(events);
                 _logger.LogWarning(ex, "Error committing aggregate events");
                 return ex;
             }
