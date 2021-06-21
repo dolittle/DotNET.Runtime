@@ -173,7 +173,7 @@ namespace Dolittle.Runtime.Events.Processing.EventHandlers
         /// Register and start the event handler for filtering and processing.
         /// </summary>
         /// <returns>Async <see cref="Task"/>.</returns>
-        public async Task RegisterAndStart()
+        public async Task Register()
         {
             if (await RejectIfNonWriteableStream().ConfigureAwait(false))
             {
@@ -182,15 +182,51 @@ namespace Dolittle.Runtime.Events.Processing.EventHandlers
 
             _logger.LogDebug($"Connecting Event Handler '{EventProcessor.Value}'");
 
-            if (!await RegisterFilterStreamProcessor().ConfigureAwait(false))
+            if (!await RegisterFilterStreamProcessor().ConfigureAwait(false)) return;
+            if (!await RegisterEventProcessorStreamProcessor().ConfigureAwait(false)) return;
+        }
+
+        /// <summary>
+        /// Start the event handler.
+        /// </summary>
+        /// <returns>Async <see cref="Task"/>.</returns>
+        public async Task Start()
+        {
+            _logger.StartingEventHandler(FilterDefinition.TargetStream);
+            try
             {
-                return;
+                var runningDispatcher = _dispatcher.Accept(new EventHandlerRegistrationResponse(), _cancellationTokenSource.Token);
+                await FilterStreamProcessor.Initialize().ConfigureAwait(false);
+                await EventProcessorStreamProcessor.Initialize().ConfigureAwait(false);
+                await ValidateFilter().ConfigureAwait(false);
+
+                var tasks = new[] { FilterStreamProcessor.Start(), EventProcessorStreamProcessor.Start(), runningDispatcher };
+
+                try
+                {
+                    await Task.WhenAny(tasks).ConfigureAwait(false);
+
+                    if (tasks.TryGetFirstInnerMostException(out var ex))
+                    {
+                        _logger.ErrorWhileRunningEventHandler(ex, EventProcessor, Scope);
+                        ExceptionDispatchInfo.Capture(ex).Throw();
+                    }
+                }
+                finally
+                {
+                    _cancellationTokenSource.Cancel();
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                    _logger.EventHandlerDisconnected(EventProcessor, Scope);
+                }
             }
-            if (!await RegisterEventProcessorStreamProcessor().ConfigureAwait(false))
+            catch (Exception ex)
             {
-                return;
+                if (!_cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    _logger.ErrorWhileStartingEventHandler(ex, EventProcessor, Scope);
+                }
+                ExceptionDispatchInfo.Capture(ex).Throw();
             }
-            await Start().ConfigureAwait(false);
         }
 
         async Task<bool> RejectIfNonWriteableStream()
@@ -271,62 +307,6 @@ namespace Dolittle.Runtime.Events.Processing.EventHandlers
             }
         }
 
-        async Task Start()
-        {
-            _logger.StartingEventHandler(FilterDefinition.TargetStream);
-            try
-            {
-                var runningDispatcher = _dispatcher.Accept(new EventHandlerRegistrationResponse(), _cancellationTokenSource.Token);
-                await FilterStreamProcessor.Initialize().ConfigureAwait(false);
-                await EventProcessorStreamProcessor.Initialize().ConfigureAwait(false);
-                await ValidateFilter().ConfigureAwait(false);
-
-                var tasks = new[] { FilterStreamProcessor.Start(), EventProcessorStreamProcessor.Start(), runningDispatcher };
-
-                try
-                {
-                    await Task.WhenAny(tasks).ConfigureAwait(false);
-
-                    if (tasks.TryGetFirstInnerMostException(out var ex))
-                    {
-                        _logger.ErrorWhileRunningEventHandler(ex, EventProcessor, Scope);
-                        ExceptionDispatchInfo.Capture(ex).Throw();
-                    }
-                }
-                finally
-                {
-                    _cancellationTokenSource.Cancel();
-                    await Task.WhenAll(tasks).ConfigureAwait(false);
-                    _logger.EventHandlerDisconnected(EventProcessor, Scope);
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!_cancellationTokenSource.Token.IsCancellationRequested)
-                {
-                    _logger.ErrorWhileStartingEventHandler(ex, EventProcessor, Scope);
-                }
-                ExceptionDispatchInfo.Capture(ex).Throw();
-            }
-        }
-
-        async Task ValidateFilter()
-        {
-            _logger.ValidatingFilter(FilterDefinition.TargetStream);
-            var filterValidationResults = await _filterValidator.Validate(GetFilterProcessor, _cancellationTokenSource.Token).ConfigureAwait(false);
-
-            if (filterValidationResults.Any(_ => !_.Value.Succeeded))
-            {
-                var firstFailedValidation = filterValidationResults.First(_ => !_.Value.Succeeded).Value;
-                _logger.FilterValidationFailed(FilterDefinition.TargetStream, firstFailedValidation.FailureReason);
-                throw new FilterValidationFailed(FilterDefinition.TargetStream, firstFailedValidation.FailureReason);
-            }
-
-            var filteredStreamDefinition = new StreamDefinition(FilterDefinition);
-            _logger.PersistingStreamDefinition(filteredStreamDefinition.StreamId);
-            await _streamDefinitions.Persist(Scope, filteredStreamDefinition, _cancellationTokenSource.Token).ConfigureAwait(false);
-        }
-
         IFilterProcessor<TypeFilterWithEventSourcePartitionDefinition> GetFilterProcessor()
         {
             return new TypeFilterWithEventSourcePartition(
@@ -349,6 +329,23 @@ namespace Dolittle.Runtime.Events.Processing.EventHandlers
         {
             var failure = new Failure(failureId, message);
             await _dispatcher.Reject(new EventHandlerRegistrationResponse { Failure = failure }, _cancellationTokenSource.Token).ConfigureAwait(false);
+        }
+
+        async Task ValidateFilter()
+        {
+            _logger.ValidatingFilter(FilterDefinition.TargetStream);
+            var filterValidationResults = await _filterValidator.Validate(GetFilterProcessor, _cancellationTokenSource.Token).ConfigureAwait(false);
+
+            if (filterValidationResults.Any(_ => !_.Value.Succeeded))
+            {
+                var firstFailedValidation = filterValidationResults.First(_ => !_.Value.Succeeded).Value;
+                _logger.FilterValidationFailed(FilterDefinition.TargetStream, firstFailedValidation.FailureReason);
+                throw new FilterValidationFailed(FilterDefinition.TargetStream, firstFailedValidation.FailureReason);
+            }
+
+            var filteredStreamDefinition = new StreamDefinition(FilterDefinition);
+            _logger.PersistingStreamDefinition(filteredStreamDefinition.StreamId);
+            await _streamDefinitions.Persist(Scope, filteredStreamDefinition, _cancellationTokenSource.Token).ConfigureAwait(false);
         }
     }
 }

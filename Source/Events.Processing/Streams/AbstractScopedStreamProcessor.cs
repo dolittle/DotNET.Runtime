@@ -25,7 +25,6 @@ namespace Dolittle.Runtime.Events.Processing.Streams
         readonly ICanFetchEventsFromStream _eventsFetcher;
         readonly IAsyncPolicyFor<ICanFetchEventsFromStream> _fetchEventToProcessPolicy;
         readonly IStreamEventWatcher _eventWaiter;
-        IStreamProcessorState _currentState;
         bool _started;
 
         /// <summary>
@@ -53,7 +52,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
         {
             Identifier = streamProcessorId;
             Logger = logger;
-            _currentState = initialState;
+            CurrentState = initialState;
             _sourceStreamDefinition = sourceStreamDefinition;
             _tenantId = tenantId;
             _processor = processor;
@@ -66,6 +65,11 @@ namespace Dolittle.Runtime.Events.Processing.Streams
         /// Gets the <see cref="StreamProcessorId">identifier</see> for the <see cref="AbstractScopedStreamProcessor"/>.
         /// </summary>
         public IStreamProcessorId Identifier { get; }
+
+        /// <summary>
+        /// Gets the <see cref="IStreamProcessorState">current state</see>.
+        /// </summary>
+        public IStreamProcessorState CurrentState { get; private set; }
 
         /// <summary>
         /// Gets the <see cref="ILogger" />.
@@ -210,21 +214,21 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                     Try<StreamEvent> tryGetEvent = false;
                     while (!tryGetEvent.Success && !cancellationToken.IsCancellationRequested)
                     {
-                        _currentState = await Catchup(_currentState, cancellationToken).ConfigureAwait(false);
-                        tryGetEvent = await FetchNextEventToProcess(_currentState, cancellationToken).ConfigureAwait(false);
+                        CurrentState = await Catchup(CurrentState, cancellationToken).ConfigureAwait(false);
+                        tryGetEvent = await FetchNextEventToProcess(CurrentState, cancellationToken).ConfigureAwait(false);
                         if (!tryGetEvent.Success)
                         {
                             await _eventWaiter.WaitForEvent(
                                 Identifier.ScopeId,
                                 _sourceStreamDefinition.StreamId,
-                                _currentState.Position,
-                                GetTimeToRetryProcessing(_currentState),
+                                CurrentState.Position,
+                                GetTimeToRetryProcessing(CurrentState),
                                 cancellationToken).ConfigureAwait(false);
                         }
                     }
 
                     if (cancellationToken.IsCancellationRequested) break;
-                    _currentState = await ProcessEvent(tryGetEvent, _currentState, cancellationToken).ConfigureAwait(false);
+                    CurrentState = await ProcessEvent(tryGetEvent, CurrentState, cancellationToken).ConfigureAwait(false);
                 }
                 while (!cancellationToken.IsCancellationRequested);
             }

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="../../default.props"/>
+
+    <PropertyGroup>
+        <AssemblyName>Dolittle.Runtime.Management.GraphQL</AssemblyName>
+        <RootNamespace>Dolittle.Runtime.Management.GraphQL</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="HotChocolate.AspNetCore" Version="$(HotChocolateVersion)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../Tenancy/Tenancy.csproj"/>
+        <ProjectReference Include="../Events.Processing/Events.Processing.csproj"/>
+    </ItemGroup>
+    
+</Project>

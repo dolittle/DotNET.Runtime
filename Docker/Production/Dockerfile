@@ -4,7 +4,6 @@ FROM alpine AS dotnet-source
 ARG CONFIGURATION=Release
 WORKDIR /app
 COPY Source ./Source/
-RUN rm -rf Source/ManagementUI
 
 # DotNet Build
 FROM mcr.microsoft.com/dotnet/sdk:5.0-alpine AS dotnet-build
@@ -22,18 +21,16 @@ WORKDIR /app/Source/Server
 RUN dotnet restore
 RUN dotnet publish -c ${CONFIGURATION} -o out
 
-# # Web Build
-# FROM node:13.12 AS web-build
-# WORKDIR /app
+# Web Build
+FROM node:14.2.0 AS web-build
+WORKDIR /app
 
-# COPY tslint.json ./
-# COPY tsconfig.settings.json ./
-# COPY Source/ManagementUI ./Source/ManagementUI
+COPY Source/Management.Web ./Source/Management.Web
 
-# WORKDIR /app/Source/ManagementUI
+WORKDIR /app/Source/Management.Web
 
-# RUN yarn
-# RUN yarn build
+RUN yarn
+RUN yarn build
 
 # Runtime Image
 FROM mcr.microsoft.com/dotnet/aspnet:5.0
@@ -52,7 +49,7 @@ RUN apt-get update && apt-get install -y libc-dev
 WORKDIR /app
 COPY --from=dotnet-build /app/Source/Server/out ./
 COPY --from=dotnet-build /app/Source/Server/.dolittle ./.dolittle
-#COPY --from=web-build /app/Source/ManagementUI/wwwroot ./wwwroot
+COPY --from=web-build /app/Source/Management.Web/wwwroot ./wwwroot
 
 EXPOSE 81
 EXPOSE 9700

@@ -27,7 +27,7 @@ namespace Dolittle.Runtime.Events.Processing.EventHandlers.for_EventHandler
                 )).Returns(true);
         };
 
-        Because of = async () => await event_handler.RegisterAndStart().ConfigureAwait(false);
+        Because of = async () => await event_handler.Register().ConfigureAwait(false);
 
         It should_try_to_register_filter_processor = () => stream_processors.Verify(_ => _
                                                                 .TryRegister(

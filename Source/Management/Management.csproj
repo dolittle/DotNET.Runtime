@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="../../default.props"/>
+    <Import Project="../../default.props"/>
 
-  <PropertyGroup>
-    <AssemblyName>Dolittle.Runtime.Management</AssemblyName>
-  </PropertyGroup>
+    <PropertyGroup>
+        <AssemblyName>Dolittle.Runtime.Management</AssemblyName>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="../Services/Services.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="HotChocolate.AspNetCore" Version="$(HotChocolateVersion)" />
+    </ItemGroup>
 </Project>

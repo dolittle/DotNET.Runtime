@@ -111,6 +111,8 @@ dotnet_diagnostic.CA1309.severity = none
 dotnet_diagnostic.CA1000.severity = none
 # RCS1018: Add accessibility modifiers
 dotnet_diagnostic.RCS1018.severity = none
+# RCS1194: Implement exception constructors
+dotnet_diagnostic.RCS1194.severity = none
 
 #### C# Coding Conventions ####
 

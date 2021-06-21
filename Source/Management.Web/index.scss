@@ -1,0 +1,13 @@
+@import "./Styles/theme.scss";
+
+
+body {
+    height: 100%;
+    margin: 1rem;
+    background-color: $ms-color-white;
+}
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}

@@ -10,8 +10,8 @@ using Dolittle.Runtime.ApplicationModel;
 using Dolittle.Runtime.DependencyInversion;
 using Dolittle.Runtime.Events.Store.Streams;
 using Dolittle.Runtime.Execution;
-using Microsoft.Extensions.Logging;
 using Dolittle.Runtime.Tenancy;
+using Microsoft.Extensions.Logging;
 
 namespace Dolittle.Runtime.Events.Processing.Streams
 {
@@ -19,8 +19,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
     /// Represents a system for working with all the <see cref="AbstractScopedStreamProcessor" /> registered for <see cref="ITenants.All" />.
     /// </summary>
     public class StreamProcessor : IDisposable
-    {
-        readonly IDictionary<TenantId, AbstractScopedStreamProcessor> _streamProcessors = new Dictionary<TenantId, AbstractScopedStreamProcessor>();
+    {       
         readonly StreamProcessorId _identifier;
         readonly IPerformActionOnAllTenants _onAllTenants;
         readonly IStreamDefinition _streamDefinition;
@@ -69,6 +68,11 @@ namespace Dolittle.Runtime.Events.Processing.Streams
         }
 
         /// <summary>
+        /// Gets the <see cref="AbstractScopedStreamProcessor"/> per <see cref="TenantId"/>.
+        /// </summary>
+        public IDictionary<TenantId, AbstractScopedStreamProcessor> StreamProcessorsPerTenant { get; } = new Dictionary<TenantId, AbstractScopedStreamProcessor>();
+
+        /// <summary>
         /// Initializes the stream processor.
         /// </summary>
         /// <returns>A <see cref="Task" />that represents the asynchronous operation.</returns>
@@ -91,7 +95,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
                         _identifier,
                         _getEventProcessor(),
                         _stopAllScopedStreamProcessorsTokenSource.Token).ConfigureAwait(false);
-                    _streamProcessors.Add(tenant, scopedStreamProcessor);
+                    StreamProcessorsPerTenant.Add(tenant, scopedStreamProcessor);
                 }).ConfigureAwait(false);
         }
 
@@ -161,7 +165,7 @@ namespace Dolittle.Runtime.Events.Processing.Streams
             _disposed = true;
         }
 
-        IEnumerable<Task> StartScopedStreamProcessors(CancellationToken cancellationToken) => _streamProcessors.Select(
+        IEnumerable<Task> StartScopedStreamProcessors(CancellationToken cancellationToken) => StreamProcessorsPerTenant.Select(
             _ => Task.Run(async () =>
                 {
                     (var tenant, var streamProcessor) = _;

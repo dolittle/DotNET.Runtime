@@ -10,3 +10,4 @@ Benchmark
 Diagrams
 .vscode
 **/node_modules
+**/wwwroot

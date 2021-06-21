@@ -27,7 +27,7 @@ namespace Dolittle.Runtime.Events.Processing.EventHandlers.for_EventHandler
                 )).Returns(false);
         };
 
-        Because of = async () => await event_handler.RegisterAndStart().ConfigureAwait(false);
+        Because of = async () => await event_handler.Register().ConfigureAwait(false);
 
         It should_reject_with_failed_to_register_filter = () => failure.Id.ShouldEqual(FiltersFailures.FailedToRegisterFilter);
 

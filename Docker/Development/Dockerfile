@@ -12,6 +12,17 @@ WORKDIR /app/Source/Server
 RUN dotnet restore
 RUN dotnet publish -c ${CONFIGURATION} -o out
 
+# Web Build
+FROM node:14.2.0 AS web-build
+WORKDIR /app
+
+COPY Source/Management.Web ./Source/Management.Web
+
+WORKDIR /app/Source/Management.Web
+
+RUN yarn
+RUN yarn build
+
 # Runtime Image
 FROM mcr.microsoft.com/dotnet/aspnet:5.0
 ARG CONFIGURATION=Release
@@ -21,6 +32,7 @@ RUN apt-get update && apt-get install -y libc-dev
 WORKDIR /app
 COPY --from=dotnet-build /app/Source/Server/out ./
 COPY --from=dotnet-build /app/Source/Server/.dolittle ./.dolittle
+COPY --from=web-build /app/Source/Management.Web/wwwroot ./wwwroot
 
 # Install MongoDB dependencies
 RUN apt-get update \

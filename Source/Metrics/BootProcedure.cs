@@ -11,19 +11,15 @@ namespace Dolittle.Runtime.Metrics
     public class BootProcedure : ICanPerformBootProcedure
     {
         readonly IMetricProviders _metricProviders;
-        readonly IMetricsSystem _metricsSystem;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BootProcedure"/> class.
         /// </summary>
         /// <param name="metricProviders"><see cref="IMetricProviders"/>.</param>
-        /// <param name="metricsSystem"><see cref="IMetricsSystem"/>.</param>
         public BootProcedure(
-            IMetricProviders metricProviders,
-            IMetricsSystem metricsSystem)
+            IMetricProviders metricProviders)
         {
             _metricProviders = metricProviders;
-            _metricsSystem = metricsSystem;
         }
 
         /// <inheritdoc/>
@@ -33,7 +29,6 @@ namespace Dolittle.Runtime.Metrics
         public void Perform()
         {
             _metricProviders.Provide();
-            _metricsSystem.Start();
         }
     }
 }

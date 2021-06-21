@@ -11,10 +11,11 @@
     "git.ignoreLimitWarning": true,
     "dotnet-test-explorer.testProjectPath":"Specifications/**/*.csproj",
     "dotnet-test-explorer.treeMode": "full",
-    "dotnet-test-explorer.runInParallel": true,
+    "dotnet-test-explorer.runInParallel": false,
     "dotnet-test-explorer.showCodeLens": true,
     "dotnet-test-explorer.autoExpandTree": true,
     "cSpell.words": [
+        "fluentui",
         "Grpc",
         "Protobuf"
     ]

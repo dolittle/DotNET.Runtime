@@ -1,13 +1,19 @@
 // Copyright (c) Dolittle. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using Dolittle.Runtime.Management.GraphQL;
+using GraphQL.Server.Ui.Playground;
+using HotChocolate.AspNetCore;
+using HotChocolate.Types;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Prometheus;
 
 namespace Dolittle.Runtime.Server
 {
+
     /// <summary>
     /// The startup for Asp.Net Core.
     /// </summary>
@@ -28,6 +34,12 @@ namespace Dolittle.Runtime.Server
                         .WithExposedHeaders("Grpc-Status", "Grpc-Message");
             }));
 
+            services.AddGraphQLServer()
+                    .AddInMemorySubscriptions()
+                    .ModifyRequestOptions(opt => opt.IncludeExceptionDetails = RuntimeEnvironment.IsDevelopment)
+                    .AddManagementAPI()
+                    .AddType(new UuidType('D'));
+
             services.AddControllers();
             services.AddMvc();
             services.AddSwaggerGen();
@@ -45,20 +57,39 @@ namespace Dolittle.Runtime.Server
                 app.UseDeveloperExceptionPage();
             }
             app.UseSwagger();
-            app.UseSwaggerUI(c =>
-            {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Runtime API v1");
-            });
+            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Runtime API v1"));
 
+            app.UseDefaultFiles();
             app.UseStaticFiles();
 
             app.UseGrpcWeb();
             app.UseCors();
             app.UseRouting();
+
+            app.UseWebSockets();
+
             app.UseEndpoints(endpoints =>
             {
+                const string graphQLRoute = "/graphql";
+                const string graphQLPlaygroundRoute = "/graphql/ui";
+
                 endpoints.MapControllers();
+                endpoints.MapGraphQLPlayground(
+                    new PlaygroundOptions
+                    {
+                        GraphQLEndPoint = graphQLRoute,
+                        SubscriptionsEndPoint = graphQLRoute
+                    }, graphQLPlaygroundRoute);
+                endpoints.MapGraphQL(graphQLRoute).WithOptions(new GraphQLServerOptions
+                {
+                    Tool = { Enable = false }
+                });
+
+                endpoints.MapMetrics(registry:app.ApplicationServices.GetService<CollectorRegistry>());
             });
+
+            ObjectFieldExtensions.ServiceProvider = app.ApplicationServices;
+            app.RunAsSinglePageApplication();
         }
     }
 }

@@ -1,0 +1,27 @@
+// Copyright (c) Dolittle. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+@import "../globals.scss";
+
+.app-header {
+    @extend %flex-container-horizontal;
+    justify-content: space-between;
+    align-items: center;
+    background-color: $color-gray-darkest;
+    height: $app-header-height;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 990;
+    .site-logo {
+        display: block;
+        height: 1.75rem;
+        padding-left: $grid-gutter/2;
+        img,
+        svg {
+            max-height: 100%;
+            height: 100%;
+        }
+    }
+}
