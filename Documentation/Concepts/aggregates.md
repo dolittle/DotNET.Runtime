@@ -6,6 +6,7 @@ weight: 70
 
 An Aggregate is [Domain-driven design](https://en.wikipedia.org/wiki/Domain-driven_design) (DDD) term coined by Eric Evans. An aggregate is a collection of objects and it represents a concept in your domain, it's not a container for items. It's bound together by an Aggregate Root, which upholds the rules (invariants) to keep the aggregate consistent. It encapsulates the domain objects, enforces business rules, and ensures that the aggregate can't be put into an invalid state.
 
+
 ## Example
 
 For example, in the domain of a restaurant, a `Kitchen` could be an aggregate, where it has domain objects like `Chefs`, `Inventory` and `Menu` and an operation `PrepareDish`.
